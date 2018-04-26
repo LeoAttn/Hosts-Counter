@@ -2,6 +2,7 @@
 
 import os
 import sys
+import argparse
 import datetime
 import re
 import csv
@@ -26,23 +27,30 @@ regexIP = "((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][
           "(\/([0-9]|[1-2][0-9]|3[0-2]))?)"
 
 # Verify arguments
-if not sys.argv[1]:
-    print("No interface selected")
-    exit(1)
+parser = argparse.ArgumentParser(prog='Hosts Counter',
+                                 description='Count thes hosts in your local network with nbtscan and nmap',
+                                 conflict_handler='resolve')
+parser.add_argument('interface', help='Select the network interface')
+parser.add_argument('-d', '--directory', help='Directory where the CSV file will be save')
+args = parser.parse_args()
 
-if len(sys.argv) == 3 and not os.path.isdir(sys.argv[2]):
-    print("Directory not valid")
-    exit(2)
+# if not sys.argv[1]:
+#     print("No interface selected")
+#     exit(1)
+#
+# if len(sys.argv) == 3 and not os.path.isdir(sys.argv[2]):
+#     print("Directory not valid")
+#     exit(2)
 
 # Find the IP range of the selected interface
-interface = os.popen("ip addr show " + sys.argv[1]).read()
+interface = os.popen("ip addr show " + args.interface).read()
 regex = re.search(r"inet " + regexIP + " brd", interface)
 if regex:
     range = regex.group(1)
 else:
     exit(3)
 
-range = "10.92.0.0/28"
+# range = "10.92.0.0/28"
 
 # Execute Nbt scan and Nmap scan
 dateStart = datetime.datetime.now()
@@ -63,18 +71,20 @@ nbHosts = len(list(set(hostsList)))
 nbHostsNbt = len(hostsNbtList)
 nbHostsNmap = len(hostsNmapList)
 
-# Write the result in CSV file
+# Define CSV path
 dateFormated = dateStart.strftime('%d-%m-%y')
 
 csvFilename = 'count_hosts_' + dateFormated + '.csv'
-if len(sys.argv) == 3:
-    csvPath = sys.argv[2] + '/' + csvFilename
+if args.directory:
+    csvPath = args.directory + '/' + csvFilename
 else:
     csvPath = csvFilename
 
 createHeader = not os.path.exists(csvPath)
 
+# Write the result in CSV file
 with open(csvPath, 'a') as csvFile:
+    # Add a header if it's a new file
     if createHeader:
         header = OrderedDict([('Start_Date', None), ('End_Date', None),
                               ('IP_Range', None), ('Nbt_Hosts_Number', None),
