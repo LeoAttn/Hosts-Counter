@@ -36,24 +36,22 @@ def listHosts(text):
 
 
 # --------------- Main ----------------
+VERSION = "0.2"
 # Regex for IP address with or without CIDR
 regexIP = "((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])" \
           "(\/([0-9]|[1-2][0-9]|3[0-2]))?)"
 
-# Verify arguments
+# Parse arguments
 parser = argparse.ArgumentParser(description='Count the hosts in your local network with nbtscan and nmap',
                                  conflict_handler='resolve')
 parser.add_argument('interface', help='Select the network interface')
 parser.add_argument('-d', '--directory', help='Directory where the CSV file will be save')
+parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 args = parser.parse_args()
 
-# if not sys.argv[1]:
-#     print("No interface selected")
-#     exit(1)
-#
-# if len(sys.argv) == 3 and not os.path.isdir(sys.argv[2]):
-#     print("Directory not valid")
-#     exit(2)
+if args.directory and not os.path.isdir(args.directory):
+    print("Directory is not valid")
+    exit(5)
 
 # Find the IP range of the selected interface
 interface = os.popen("ip addr show " + args.interface).read()
@@ -61,12 +59,12 @@ regex = re.search(r"inet " + regexIP + " brd", interface)
 if regex:
     range = regex.group(1)
 else:
-    exit(3)
+    exit(6)
 
 # Execute Nbt scan and Nmap scan
 dateStart = datetime.datetime.now()
-#print("Start ARP scan on " + range)
-#arpScan = os.popen("sudo arp-scan --interface "+args.interface+" "+range).read()
+# print("Start ARP scan on " + range)
+# arpScan = os.popen("sudo arp-scan --interface "+args.interface+" "+range).read()
 print("Start NbtScan on " + range)
 nbtScan = os.popen("nbtscan " + range + " -t 1000 -q 2> /dev/null  | iconv -c -t UTF-8").read()
 print("Start Nmap on " + range)
