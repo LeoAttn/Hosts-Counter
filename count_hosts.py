@@ -1,7 +1,21 @@
 #!/usr/bin/python3
 
+# Copyright (C) 2018 LeoAttn
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
-import sys
 import argparse
 import datetime
 import re
@@ -27,8 +41,7 @@ regexIP = "((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][
           "(\/([0-9]|[1-2][0-9]|3[0-2]))?)"
 
 # Verify arguments
-parser = argparse.ArgumentParser(prog='Hosts Counter',
-                                 description='Count thes hosts in your local network with nbtscan and nmap',
+parser = argparse.ArgumentParser(description='Count the hosts in your local network with nbtscan and nmap',
                                  conflict_handler='resolve')
 parser.add_argument('interface', help='Select the network interface')
 parser.add_argument('-d', '--directory', help='Directory where the CSV file will be save')
@@ -50,10 +63,10 @@ if regex:
 else:
     exit(3)
 
-# range = "10.92.0.0/28"
-
 # Execute Nbt scan and Nmap scan
 dateStart = datetime.datetime.now()
+#print("Start ARP scan on " + range)
+#arpScan = os.popen("sudo arp-scan --interface "+args.interface+" "+range).read()
 print("Start NbtScan on " + range)
 nbtScan = os.popen("nbtscan " + range + " -t 1000 -q 2> /dev/null  | iconv -c -t UTF-8").read()
 print("Start Nmap on " + range)
