@@ -26,7 +26,7 @@ from collections import OrderedDict
 # ------------- Fonctions -------------
 def listHosts(text):
     hostsList = []
-    regex = re.findall(r"" + regexIP + "[^\d]", text, re.DOTALL)
+    regex = re.findall(r"" + regexIP + "($|[^\d])", text, re.DOTALL)
     if regex:
         for addr in regex:
             hostsList.append(addr[0])
@@ -63,22 +63,24 @@ else:
 
 # Execute Nbt scan and Nmap scan
 dateStart = datetime.datetime.now()
-# print("Start ARP scan on " + range)
-# arpScan = os.popen("sudo arp-scan --interface "+args.interface+" "+range).read()
+print("Start ARP scan on " + range)
+arpScan = os.popen("sudo /usr/bin/arp-scan --interface " + args.interface + " " + range).read()
 print("Start NbtScan on " + range)
-nbtScan = os.popen("nbtscan " + range + " -t 1000 -q 2> /dev/null  | iconv -c -t UTF-8").read()
+nbtScan = os.popen("/usr/bin/nbtscan " + range + " -t 1000 -q | iconv -c -t UTF-8").read()
 print("Start Nmap on " + range)
-nmap = os.popen("nmap " + range + " -sP 2> /dev/null").read()
+nmap = os.popen("/usr/bin/nmap " + range + " -sP").read()
 print("End")
 dateEnd = datetime.datetime.now()
 
 # List the IP hosts found in scans
+hostsArpList = listHosts(arpScan)
 hostsNbtList = listHosts(nbtScan)
 hostsNmapList = listHosts(nmap)
 
-# Join the 2 lists and count the number of hosts in scans
-hostsList = hostsNbtList + hostsNmapList
+# Join the 3 lists and count the number of hosts in scans
+hostsList = hostsArpList + hostsNbtList + hostsNmapList
 nbHosts = len(list(set(hostsList)))
+nbHostsArp = len(hostsArpList)
 nbHostsNbt = len(hostsNbtList)
 nbHostsNmap = len(hostsNmapList)
 
@@ -98,13 +100,13 @@ with open(csvPath, 'a') as csvFile:
     # Add a header if it's a new file
     if createHeader:
         header = OrderedDict([('Start_Date', None), ('End_Date', None),
-                              ('IP_Range', None), ('Nbt_Hosts_Number', None),
+                              ('IP_Range', None), ('Nbt_Hosts_Number', None), ('Arppro_Hosts_Number', None),
                               ('Nmap_Hosts_Number', None), ('Total_Hosts_Number', None)])
         dw = csv.DictWriter(csvFile, delimiter='\t', fieldnames=header)
         dw.writeheader()
 
     wr = csv.writer(csvFile, quoting=csv.QUOTE_ALL, delimiter=';')
-    wr.writerow([dateStart, dateEnd, range, nbHostsNbt, nbHostsNmap, nbHosts])
+    wr.writerow([dateStart, dateEnd, range, nbHostsArp, nbHostsNbt, nbHostsNmap, nbHosts])
 
 print("Found " + str(nbHostsNbt) + " nbt hosts and " + str(nbHostsNmap) + " nmap hosts.")
 print("Add row in " + csvPath)
