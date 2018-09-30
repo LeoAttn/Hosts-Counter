@@ -25,7 +25,7 @@ from datetime import datetime
 
 
 # --------------- Main ----------------
-VERSION = '1.0'
+VERSION = '1.1'
 
 # Declaration of all Regex
 regexIP = r'((?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[' \
@@ -39,10 +39,11 @@ regexHostScan = r'domain name pointer (\S+)\.$'
 regexNmapScan = r'^(\d+)/(?:udp|tcp)\s+open'
 
 # Parse arguments
-parser = ArgumentParser(description='Count the hosts in your local network with nbtscan and nmap',
+parser = ArgumentParser(description='Count the hosts in your local network and get informations from each host',
                         conflict_handler='resolve')
 parser.add_argument('interface', help='Select the network interface')
-parser.add_argument('-d', '--directory', help='Directory where the JSON file will be save', default='.')
+parser.add_argument('-d', '--directory', help='Directory where the JSON file will be save', default='./')
+parser.add_argument('--update-hosts', action='store_true', help='Force Update of informations from each host')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 args = parser.parse_args()
 
@@ -59,6 +60,9 @@ if regex:
 else:
     exit(6)
 
+# Goto the directory selected
+os.chdir(args.directory)
+
 # Execute ARP scan
 dateStart = datetime.now()
 print("Start ARP scan on", range)
@@ -70,11 +74,10 @@ hostsList = re.findall(regexARPScan, arpScan, re.MULTILINE)
 # Define JSON path
 dateFormated = dateStart.strftime('%y-%m-%d')
 jsonFilename = 'count_hosts_' + dateFormated + '.json'
-jsonPath = args.directory + '/' + jsonFilename
 
 # Load the json data or create if not exist
-if os.path.exists(jsonPath):
-    with open(jsonPath, 'r') as jsonFile:
+if os.path.exists(jsonFilename):
+    with open(jsonFilename, 'r') as jsonFile:
         data = json.load(jsonFile)
 else:
     data = {
@@ -88,7 +91,7 @@ if data.get(range) == None:
 for host in hostsList:
     ip = host[0]
     # Create object of host and launch scan if not exist
-    if data.get(range).get(ip) == None:
+    if data.get(range).get(ip) == None or args.update_hosts:
         data[range][ip] = {
             'mac': host[1],
             'manufacturer': host[2],
@@ -127,7 +130,7 @@ data['historic'].append({
 })
 
 # Write the json data in file
-with open(jsonPath, 'w') as jsonFile:
+with open(jsonFilename, 'w') as jsonFile:
     json.dump(data, jsonFile, indent=2)
 
 print("Found " + str(len(hostsList)) + " hosts.")

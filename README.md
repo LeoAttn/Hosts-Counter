@@ -16,9 +16,9 @@
 # Help
 
 ``` bash
-usage: count_hosts.py [-h] [-d DIRECTORY] [-v] interface
+usage: count_hosts.py [-h] [-d DIRECTORY] [--update-hosts] [-v] interface
 
-Count the hosts in your local network with nbtscan and nmap
+Count the hosts in your local network and get informations from each host
 
 positional arguments:
   interface             Select the network interface
@@ -27,6 +27,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -d DIRECTORY, --directory DIRECTORY
                         Directory where the JSON file will be save
+  --update-hosts        Force Update of informations from each host
   -v, --version         show program's version number and exit
 ```
 
