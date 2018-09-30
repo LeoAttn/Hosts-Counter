@@ -25,7 +25,7 @@ from datetime import datetime
 
 
 # --------------- Main ----------------
-VERSION = '1.1'
+VERSION = '1.1.1'
 
 # Declaration of all Regex
 regexIP = r'((?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[' \
@@ -91,12 +91,15 @@ if data.get(range) == None:
 for host in hostsList:
     ip = host[0]
     # Create object of host and launch scan if not exist
-    if data.get(range).get(ip) == None or args.update_hosts:
-        data[range][ip] = {
-            'mac': host[1],
-            'manufacturer': host[2],
-            'uptimes': []
-        }
+    if data[range].get(ip) == None or args.update_hosts:
+        if data[range].get(ip) == None:
+            data[range][ip] = {
+                'uptimes': []
+            }
+
+        data[range][ip]['mac'] = host[1]
+        data[range][ip]['manufacturer'] = host[2]
+
         # Find DNS Name
         print('Start Hostname on', ip)
         hostScan = os.popen('/usr/bin/host ' + ip).read()
