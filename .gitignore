@@ -103,5 +103,6 @@ ENV/
 # Jetbrains
 .idea/
 
-# csv file
-*.csv
+# logs file
+count_hosts_*.csv
+count_hosts_*.json
