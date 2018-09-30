@@ -15,40 +15,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import os
-import argparse
-import datetime
 import re
-import csv
-from collections import OrderedDict
-
+from argparse import ArgumentParser
+from datetime import datetime
 
 # ------------- Fonctions -------------
-def listHosts(text):
-    hostsList = []
-    regex = re.findall(r"" + regexIP + "($|[^\d])", text, re.DOTALL)
-    if regex:
-        for addr in regex:
-            hostsList.append(addr[0])
-        return hostsList
-    else:
-        return []
 
 
 # --------------- Main ----------------
-VERSION = "0.2"
-# Regex for IP address with or without CIDR
-regexIP = "((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])" \
-          "(\/([0-9]|[1-2][0-9]|3[0-2]))?)"
+VERSION = '1.0'
+
+# Declaration of all Regex
+regexIP = r'((?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[' \
+          r'0-5])(?:\/(?:[0-9]|[1-2][0-9]|3[0-2]))?)'
+regexMAC = r'((?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2}))'
+regexManufacturer = r'([^\t\n]+)'
+regexNBT = r'(\S+)'
+regexARPScan = r'^' + regexIP + r'\s+' + regexMAC + r'\s+' + regexManufacturer + r'$'
+regexNBTScan = r'^' + regexIP + r'\s+' + regexNBT + r'\s'
+regexHostScan = r'domain name pointer (\S+)\.$'
+regexNmapScan = r'^(\d+)/(?:udp|tcp)\s+open'
 
 # Parse arguments
-parser = argparse.ArgumentParser(description='Count the hosts in your local network with nbtscan and nmap',
-                                 conflict_handler='resolve')
+parser = ArgumentParser(description='Count the hosts in your local network with nbtscan and nmap',
+                        conflict_handler='resolve')
 parser.add_argument('interface', help='Select the network interface')
-parser.add_argument('-d', '--directory', help='Directory where the CSV file will be save')
+parser.add_argument('-d', '--directory', help='Directory where the JSON file will be save', default='.')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 args = parser.parse_args()
 
+# Verify the directory
 if args.directory and not os.path.isdir(args.directory):
     print("Directory is not valid")
     exit(5)
@@ -61,52 +59,75 @@ if regex:
 else:
     exit(6)
 
-# Execute Nbt scan and Nmap scan
-dateStart = datetime.datetime.now()
-print("Start ARP scan on " + range)
+# Execute ARP scan
+dateStart = datetime.now()
+print("Start ARP scan on", range)
 arpScan = os.popen("sudo /usr/bin/arp-scan --interface " + args.interface + " " + range).read()
-print("Start NbtScan on " + range)
-nbtScan = os.popen("/usr/bin/nbtscan " + range + " -t 1000 -q | iconv -c -t UTF-8").read()
-print("Start Nmap on " + range)
-nmap = os.popen("/usr/bin/nmap " + range + " -sP").read()
-print("End")
-dateEnd = datetime.datetime.now()
 
-# List the IP hosts found in scans
-hostsArpList = listHosts(arpScan)
-hostsNbtList = listHosts(nbtScan)
-hostsNmapList = listHosts(nmap)
+# List the IP hosts found in scan ARP
+hostsList = re.findall(regexARPScan, arpScan, re.MULTILINE)
 
-# Join the 3 lists and count the number of hosts in scans
-hostsList = hostsArpList + hostsNbtList + hostsNmapList
-nbHosts = len(list(set(hostsList)))
-nbHostsArp = len(hostsArpList)
-nbHostsNbt = len(hostsNbtList)
-nbHostsNmap = len(hostsNmapList)
+# Define JSON path
+dateFormated = dateStart.strftime('%y-%m-%d')
+jsonFilename = 'count_hosts_' + dateFormated + '.json'
+jsonPath = args.directory + '/' + jsonFilename
 
-# Define CSV path
-dateFormated = dateStart.strftime('%d-%m-%y')
-
-csvFilename = 'count_hosts_' + dateFormated + '.csv'
-if args.directory:
-    csvPath = args.directory + '/' + csvFilename
+# Load the json data or create if not exist
+if os.path.exists(jsonPath):
+    with open(jsonPath, 'r') as jsonFile:
+        data = json.load(jsonFile)
 else:
-    csvPath = csvFilename
+    data = {
+        'historic': []
+    }
 
-createHeader = not os.path.exists(csvPath)
+# Create object of IP range if not exist
+if data.get(range) == None:
+    data[range] = {}
 
-# Write the result in CSV file
-with open(csvPath, 'a') as csvFile:
-    # Add a header if it's a new file
-    if createHeader:
-        header = OrderedDict([('Start_Date', None), ('End_Date', None),
-                              ('IP_Range', None), ('Nbt_Hosts_Number', None), ('Arppro_Hosts_Number', None),
-                              ('Nmap_Hosts_Number', None), ('Total_Hosts_Number', None)])
-        dw = csv.DictWriter(csvFile, delimiter='\t', fieldnames=header)
-        dw.writeheader()
+for host in hostsList:
+    ip = host[0]
+    # Create object of host and launch scan if not exist
+    if data.get(range).get(ip) == None:
+        data[range][ip] = {
+            'mac': host[1],
+            'manufacturer': host[2],
+            'uptimes': []
+        }
+        # Find DNS Name
+        print('Start Hostname on', ip)
+        hostScan = os.popen('/usr/bin/host ' + ip).read()
+        hostName = re.findall(regexHostScan, hostScan)
+        if hostName:
+            data[range][ip]['dns_name'] = hostName[0]
+        # Find NetBios Name
+        print('Start NbtScan on', ip)
+        nbtScan = os.popen('/usr/bin/nbtscan ' + ip + ' -t 1000 -q | iconv -c -t UTF-8').read()
+        nbtName = re.findall(regexNBTScan, nbtScan)
+        if nbtName:
+            data[range][ip]['nbt_name'] = nbtName[0][1]
+        # Find open ports
+        print('Start Nmap on', ip)
+        nmap = os.popen("/usr/bin/nmap " + ip + " -Pn -p 22,80,443,3000").read()
+        if nmap:
+            ports = [int(port) for port in re.findall(regexNmapScan, nmap, re.MULTILINE)]
+            data[range][ip]['open_ports'] = ports
 
-    wr = csv.writer(csvFile, quoting=csv.QUOTE_ALL, delimiter=';')
-    wr.writerow([dateStart, dateEnd, range, nbHostsArp, nbHostsNbt, nbHostsNmap, nbHosts])
+    # Add the date on the host
+    data[range][ip]['uptimes'].append(str(dateStart))
 
-print("Found " + str(nbHostsNbt) + " nbt hosts and " + str(nbHostsNmap) + " nmap hosts.")
-print("Add row in " + csvPath)
+dateEnd = datetime.now()
+
+# Add a summary of scan
+data['historic'].append({
+    'date': str(dateStart),
+    'duration': (dateEnd-dateStart).total_seconds(),
+    'ip_range': range,
+    'hosts_number': len(hostsList)
+})
+
+# Write the json data in file
+with open(jsonPath, 'w') as jsonFile:
+    json.dump(data, jsonFile, indent=2)
+
+print("Found " + str(len(hostsList)) + " hosts.")

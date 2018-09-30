@@ -5,11 +5,18 @@
 |  _  | (_) \__ \ |_\__ \_____| |__| (_) | |_| | | | | ||  __/ |   
 |_| |_|\___/|___/\__|___/      \____\___/ \__,_|_| |_|\__\___|_|   
 ```
+# Requirements
+
+- Python 3
+- sudo
+- arp-scan
+- nbtscan
+- nmap
 
 # Help
 
 ``` bash
-usage: count_hosts.py [-h] [-d DIRECTORY] interface
+usage: count_hosts.py [-h] [-d DIRECTORY] [-v] interface
 
 Count the hosts in your local network with nbtscan and nmap
 
@@ -19,7 +26,8 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -d DIRECTORY, --directory DIRECTORY
-                        Directory where the CSV file will be save
+                        Directory where the JSON file will be save
+  -v, --version         show program's version number and exit
 ```
 
 # Licence
