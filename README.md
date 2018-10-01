@@ -15,7 +15,7 @@
 
 # Help
 
-``` bash
+```shell
 usage: count_hosts.py [-h] [-d DIRECTORY] [--update-hosts] [-v] interface
 
 Count the hosts in your local network and get informations from each host
@@ -31,9 +31,34 @@ optional arguments:
   -v, --version         show program's version number and exit
 ```
 
+# Structure JSON Output
+
+```json
+{
+  "historic": [
+    {
+      "date": datetime,
+      "duration": float,
+      "ip_range": string,
+      "hosts_number": integer
+    }
+  ],
+  "192.168.1.0/24": {
+    "192.168.1.1": {
+      "mac": string,
+      "dns_name": string,
+      "nbt_name": string,
+      "manufacturer": string,
+      "uptimes": [datetime],
+      "open_ports": [integer]
+    }
+  }
+}
+```
+
 # Licence
 
-```
+```text
 Copyright (C) 2018 LeoAttn
 
 This program is free software: you can redistribute it and/or modify

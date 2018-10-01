@@ -106,3 +106,7 @@ ENV/
 # logs file
 count_hosts_*.csv
 count_hosts_*.json
+
+# OUI file
+ieee-oui.txt
+ieee-oui.txt.bak
