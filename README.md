@@ -12,6 +12,7 @@
 - arp-scan
 - nbtscan
 - nmap
+- get-oui
 
 # Help
 
