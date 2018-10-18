@@ -27,15 +27,15 @@ import argparse
 from datetime import datetime, timedelta
 
 # -------------------------------- Constants ----------------------------------
-# DEFAULT_PORTS = [22, 80, 443, 3000]
-DEFAULT_PORTS = []
+DEFAULT_PORTS = [22, 80, 443, 3000, 8080]
+# DEFAULT_PORTS = []
 
-VERSION = '1.4'
+VERSION = '1.5'
 # Declaration of all Regex
 REGEX_IP = r'((?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}' \
            r'(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(?:\/(?:[0-9]|[1-2][0-9]|3[0-2]))?)'
 REGEX_MAC = r'((?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2}))'
-REGEX_VENDOR = r'([^\t\n]+)'
+REGEX_VENDOR = r'((?:(?!\(DUP: \d+\))[^\t\n])+)'
 REGEX_NETBIOS_NAME = r'(\S+)'
 REGEX_IP_ADDR = r"inet " + REGEX_IP + " brd"
 REGEX_ARP_SCAN = r'^' + REGEX_IP + r'\s+' + REGEX_MAC + r'\s+' + REGEX_VENDOR + r'$'
@@ -58,6 +58,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('interface', help='Select the network interface')
     parser.add_argument('-d', '--directory', help='Specify the directory where the JSON file will be save',
                         default='./')
+    parser.add_argument('-p', '--ports', nargs='+', help='Port(s) to scan with Nmap', default=DEFAULT_PORTS)
     parser.add_argument('-o', '--oui-url', help='Specify the URL to fetch the OUI data from',
                         default=DEFAULT_OUI_URL)
     parser.add_argument('--update-hosts', action='store_true', help='Force Update of informations from each host')
@@ -94,7 +95,7 @@ def get_json_file(filename: str) -> dict:
         }
 
 
-def get_info_host(ip: str, output: multiprocessing.Queue):
+def get_info_host(ip: str, ports_list: list, output: multiprocessing.Queue):
     data = {
         'ip_addr': ip
     }
@@ -112,8 +113,8 @@ def get_info_host(ip: str, output: multiprocessing.Queue):
         data['nbt_name'] = nbt_name[0][1]
     # Find open ports
     print('Start Nmap on', ip)
-    ports_scan = ports_to_string(DEFAULT_PORTS)
-    print("/usr/bin/nmap " + ip + " -Pn" + (" -p " + ports_scan if ports_scan else ''))
+    ports_scan = list_to_comma_string(ports_list)
+    # print("/usr/bin/nmap " + ip + " -Pn" + (" -p " + ports_scan if ports_scan else ''))
     nmap = os.popen("/usr/bin/nmap " + ip + " -Pn" + (" -p " + ports_scan if ports_scan else '')).read()
     if nmap:
         ports = [int(port) for port in re.findall(REGEX_NMAP, nmap, re.MULTILINE)]
@@ -122,14 +123,16 @@ def get_info_host(ip: str, output: multiprocessing.Queue):
 
     output.put(data)
 
-def ports_to_string(ports):
+
+def list_to_comma_string(list: list) -> str:
     result = ''
-    last = len(ports) - 1
-    for pos, elem in enumerate(ports):
+    last = len(list) - 1
+    for pos, elem in enumerate(list):
         result += str(elem)
         if pos != last:
             result += ','
     return result
+
 
 def is_older_than_few_days(file: str, days: int) -> bool:
     return datetime.fromtimestamp(os.path.getmtime(file)) < datetime.now() - timedelta(days=days)
@@ -141,7 +144,8 @@ def set_attributes(new_attributes: dict, object_to_update: dict, filter_attr: st
             object_to_update[key] = value
 
 
-def create_host_object(data: dict, host: dict, ip_range: str, proccesses: list, process_queue: multiprocessing.Queue):
+def create_host_object(data: dict, host: dict, ip_range: str, ports_to_scan: list, proccesses: list,
+                       process_queue: multiprocessing.Queue):
     ip = host[0]
     if data[ip_range].get(ip) is None:
         data[ip_range][ip] = {
@@ -149,7 +153,7 @@ def create_host_object(data: dict, host: dict, ip_range: str, proccesses: list, 
         }
     data[ip_range][ip]['mac'] = host[1]
     data[ip_range][ip]['manufacturer'] = host[2]
-    proccesses.append(multiprocessing.Process(target=get_info_host, args=(ip, process_queue)))
+    proccesses.append(multiprocessing.Process(target=get_info_host, args=(ip, ports_to_scan, process_queue)))
 
 
 def update_host(data: dict, ip_range: str, proccess: list, process_queue: multiprocessing.Queue):
@@ -211,7 +215,7 @@ def main():
         ip = host[0]
         # Create object of host and launch scan if not exist
         if data[ip_range].get(ip) is None or args.update_hosts:
-            create_host_object(data, host, ip_range, proccesses, process_queue)
+            create_host_object(data, host, ip_range, args.ports, proccesses, process_queue)
         # Add the date on the host
         data[ip_range][ip]['uptimes'].append(str(date_start))
 
